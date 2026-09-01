@@ -1,0 +1,20 @@
+# Foundry
+out/
+cache/
+broadcast/
+
+# Dependencies
+lib/
+node_modules/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Local testnet seeding, not part of the protocol
+script/Seed*.s.sol
+script/seed_*.sh
+
+# OS
+.DS_Store

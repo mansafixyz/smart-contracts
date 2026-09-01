@@ -1,0 +1,33 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+solc = "0.8.24"
+# Robinhood Chain runs the Arbitrum Nitro stack. Pin to the Paris EVM so the
+# emitted bytecode never depends on opcodes the rollup has not enabled.
+evm_version = "paris"
+optimizer = true
+optimizer_runs = 1000
+# createAgent takes a wide policy struct as flat args; the IR pipeline handles
+# the resulting stack depth cleanly and is fully supported on the Nitro stack.
+via_ir = true
+bytecode_hash = "none"
+cbor_metadata = false
+
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+
+[rpc_endpoints]
+robinhood = "https://rpc.mainnet.chain.robinhood.com"
+robinhood_testnet = "https://rpc.testnet.chain.robinhood.com"
+
+# Blockscout verification. `forge verify-contract ... --verifier blockscout`
+# reads the URL from here when you pass `--chain robinhood`.
+[etherscan]
+robinhood = {key = "${BLOCKSCOUT_API_KEY}", url = "https://robinhoodchain.blockscout.com/api/", chain = 4663}
+robinhood_testnet = {key = "${BLOCKSCOUT_API_KEY}", url = "https://explorer.testnet.chain.robinhood.com/api/", chain = 46630}
