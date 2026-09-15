@@ -19,3 +19,20 @@ Every account registers an ElGamal public key and carries one ciphertext balance
 - `withdraw` unwraps against a proof that the encrypted balance covers it. The figure is public at this point, because the ERC-20 transfer that follows would expose it anyway.
 
 The verifier lives behind `setVerifier` as a separate contract, so circuits can be upgraded without migrating a single balance. This layer also carries its own freeze, independent of the protocol-wide pause: it stops value moving while leaving registration and verifier rotation alive, which is what lets a suspect verifier be swapped out without stranding anyone.
+
+## Fees, and what `$MANSA` does about them
+
+One contract prices everything. `FeeSchedule.quoteFee(payer, amount)` returns the fee and the rate that produced it, and the app and SDK read the very same view to show someone their live rate beforehand.
+
+```
+grossFee  = amount * baseFeeBps / 10_000
+discount  = discountBpsOf(payer)
+netFee    = grossFee * (10_000 - discount) / 10_000
+feeAmount = min(netFee, feeCap)
+```
+
+The discount follows a loyalty weight: `$MANSA` staked in `StakingVault` at full weight, `$MANSA` merely held at `heldWeightBps` of that (half, by default), with the total read against an ascending table. Staking beats holding, holding beats neither, and that ordering is the entire point — the more of the protocol you are tied to, the less it costs you to use.
+
+Deployed defaults are a 0.10% base rate capped at 5 USDG, with thresholds at 1k, 10k, 100k, and 1M `$MANSA` earning 10%, 25%, 50%, and 75% off.
+
+Fees ship switched off. Nothing charges anything until `ProtocolAuthority.setFeeConfig(treasury, feeSchedule)` names both, and clearing either one switches them off again everywhere. `AgentController` takes the fee from the agent's vault, discounted by the owner's holdings, and pointedly does not count it against the policy — those limits govern what the agent spends, not what the protocol charges to carry it. `RequestLedger` bills the payer on top of the amount so the recipient is left whole.
