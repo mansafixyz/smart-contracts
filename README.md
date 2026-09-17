@@ -10,6 +10,23 @@ Both addresses in a transfer stay public from beginning to end. The figure betwe
 
 An encrypted balance buys confidentiality and nothing else. It cannot establish that `gwen.mansafi` is the person behind a wallet, that an agent has already burned through today's allowance, that a request link lapsed unpaid, or that its owner answered an auditor last March. None of that belongs inside the token, where every added constraint is another circuit to prove and another thing to get wrong. So it sits alongside as ordinary contract state, and the client composes the two at settlement.
 
+## An agent, spending
+
+An agent signs with `agentSigner`, a key held by whatever system operates it. That key is weak by design: it reaches only funds already sitting in a contract-controlled vault, only in the agent's single settlement token, and only within the policy its owner wrote. Nothing ever rests under the agent's own key, so a leak is answered by pausing or revoking rather than by racing the attacker to the exit.
+
+A vault is an internal balance inside `AgentController`, credited by `fundAgent` against what actually arrived — a fee-on-transfer token cannot inflate the books. No agent can reach another's balance.
+
+`hitlThreshold` decides which of two routes a spend takes:
+
+- `payInvoice` settles then and there. It tests the per-transaction ceiling, the rolling 24-hour window, the recipient allowlist, and that the figure sits inside the threshold. The window advances by itself the first time a spend lands more than a day after it opened, so nothing ever has to call a reset.
+- `queueInvoice` parks anything above the threshold and moves nothing. Allowlist and per-transaction ceiling are checked immediately, so the queue cannot be stuffed with spends that were never going to pass. The daily ceiling is deliberately left for approval time, because what fitted when it was queued may no longer fit when somebody actually looks.
+
+The owner then calls `approvePending`, which re-runs the policy against its present state before releasing anything, or `rejectPending`, which drops the record. Since nothing was ever transferred, a rejection has nothing to undo.
+
+Both routes carry an x402 `invoiceId` through to `AgentPaymentExecuted`, which is what an operator's webhook reconciles against.
+
+Three controls sit over the top. `setAgentStatus` halts and restarts an agent without touching vault or policy. `rotateAgentSigner` installs a fresh key while preserving vault, policy, and history — the recovery path for a leaked key that stops short of demolition. `revokeAgent` is final, and returns whatever remains to the owner in the same transaction.
+
 ## A confidential transfer, mechanically
 
 Every account registers an ElGamal public key and carries one ciphertext balance. Then:
