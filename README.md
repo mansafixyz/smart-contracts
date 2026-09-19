@@ -10,6 +10,21 @@ Both addresses in a transfer stay public from beginning to end. The figure betwe
 
 An encrypted balance buys confidentiality and nothing else. It cannot establish that `gwen.mansafi` is the person behind a wallet, that an agent has already burned through today's allowance, that a request link lapsed unpaid, or that its owner answered an auditor last March. None of that belongs inside the token, where every added constraint is another circuit to prove and another thing to get wrong. So it sits alongside as ordinary contract state, and the client composes the two at settlement.
 
+## What's here
+
+| Contract | Job |
+|---|---|
+| `ProtocolAuthority` | Admin role, compliance role, the pause, and fee routing. Holds no value. |
+| `AccountRegistry` | One record per wallet, unique `.mansafi` handles, KYC tiers written by the compliance role. |
+| `AgentController` | Agents, their on-chain spend policy, their vaults, the approval queue, signer rotation, revocation. |
+| `RequestLedger` | Request-to-pay records, including confidential ones that store a commitment where the amount would go. |
+| `DisclosureLog` | Timestamped proof that a disclosure happened, without naming the counterparty or publishing the proof. |
+| `confidential/ConfidentialToken` | The encrypted-balance USDG wrapper: register, deposit, transfer, withdraw. |
+| `confidential/AltBn128` | BN254 group operations over the `0x06` and `0x07` precompiles, used to move ciphertexts around. |
+| `confidential/IConfidentialTransferVerifier` | What a deployed Groth16 verifier must implement. `StubTransferVerifier` is the bring-up placeholder that checks nothing. |
+| `fees/FeeSchedule` | The price list and the `$MANSA` discount curve. Anything that moves value prices itself here. |
+| `fees/StakingVault` | Custody for staked `$MANSA`, which counts at full weight toward the discount. |
+
 ## An agent, spending
 
 An agent signs with `agentSigner`, a key held by whatever system operates it. That key is weak by design: it reaches only funds already sitting in a contract-controlled vault, only in the agent's single settlement token, and only within the policy its owner wrote. Nothing ever rests under the agent's own key, so a leak is answered by pausing or revoking rather than by racing the attacker to the exit.
@@ -53,3 +68,13 @@ The discount follows a loyalty weight: `$MANSA` staked in `StakingVault` at full
 Deployed defaults are a 0.10% base rate capped at 5 USDG, with thresholds at 1k, 10k, 100k, and 1M `$MANSA` earning 10%, 25%, 50%, and 75% off.
 
 Fees ship switched off. Nothing charges anything until `ProtocolAuthority.setFeeConfig(treasury, feeSchedule)` names both, and clearing either one switches them off again everywhere. `AgentController` takes the fee from the agent's vault, discounted by the owner's holdings, and pointedly does not count it against the policy — those limits govern what the agent spends, not what the protocol charges to carry it. `RequestLedger` bills the payer on top of the amount so the recipient is left whole.
+
+## What has to be trusted
+
+No user funds are custodied. An account's assets stay in the account's own wallet. The only pooled balances anywhere are agent vaults, and those exist solely so a spend policy can be enforced by code rather than asserted by a server.
+
+The admin role can rotate the other roles, work the pause, and configure fee routing. It cannot move anyone's funds, mint anything, or read an encrypted balance. Handing that role on takes two steps — the holder nominates, the nominee accepts — so a mistyped address cannot leave the protocol without an administrator.
+
+The pause stops value moving and deliberately leaves identity and agent configuration alive. Mid-incident, a user needs to be able to pause or revoke an agent, and a freeze that took that away would do so at the worst possible moment.
+
+The compliance role writes a KYC tier and does nothing else. It cannot move funds, block a transfer, or see a figure.
