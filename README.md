@@ -78,3 +78,70 @@ The admin role can rotate the other roles, work the pause, and configure fee rou
 The pause stops value moving and deliberately leaves identity and agent configuration alive. Mid-incident, a user needs to be able to pause or revoke an agent, and a freeze that took that away would do so at the worst possible moment.
 
 The compliance role writes a KYC tier and does nothing else. It cannot move funds, block a transfer, or see a figure.
+
+## Layout
+
+```
+contracts/
+  src/
+    ProtocolAuthority.sol        roles, pause, fee routing
+    AccountRegistry.sol          records, handles, KYC tiers
+    AgentController.sol          agents, policy, approval queue, x402
+    RequestLedger.sol            request-to-pay, confidential commitments
+    DisclosureLog.sol            disclosure receipts
+    confidential/                ConfidentialToken, AltBn128, verifier interface
+    fees/                        FeeSchedule, StakingVault
+    interfaces/                  IERC20, IProtocolAuthority, IAccountRegistry
+    libraries/                   SafeTransferLib, ReentrancyGuard, shared errors
+  script/
+    Deploy.s.sol                 production deployment, driven by .env
+    DeployTestnet.s.sol          testnet bring-up against a mock USDG
+  test/                          Foundry suite
+```
+
+## Building
+
+You will need [Foundry](https://book.getfoundry.sh/).
+
+```bash
+forge install foundry-rs/forge-std --no-git
+forge build
+forge test
+```
+
+solc is pinned at 0.8.24 and the EVM at Paris, so nothing emitted can depend on an opcode the rollup has not turned on. `via_ir` is enabled because `createAgent` takes a wide policy as flat arguments and the stack depth needs it.
+
+## Deploying
+
+Copy `.env.example` to `.env` and supply the deployer key, the compliance authority, the USDG address, and — once it exists — the real verifier. Leave `TRANSFER_VERIFIER_ADDRESS` empty and the script installs `StubTransferVerifier` so the token can be exercised during bring-up. It checks nothing, and must be replaced via `ConfidentialToken.setVerifier` before real value goes anywhere near it.
+
+```bash
+# Testnet first, chain ID 46630
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url robinhood_testnet --broadcast
+
+# Mainnet, chain ID 4663
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url robinhood --broadcast --verify --verifier blockscout
+```
+
+Supplying both `MANSA_ADDRESS` and `TREASURY` additionally deploys the staking vault and the fee schedule and wires routing. Leave either out to launch with fees off, which is the recommended way to go first.
+
+Verification goes through Blockscout:
+
+```bash
+forge verify-contract <address> src/AgentController.sol:AgentController \
+  --chain-id 4663 --verifier blockscout \
+  --verifier-url https://robinhoodchain.blockscout.com/api/
+```
+
+`DeployTestnet.s.sol` exists because the testnet has no canonical USDG. It mints a six-decimal stand-in, appoints the deployer as compliance authority, and installs the bring-up verifier. Not one of those belongs on mainnet.
+
+## Networks
+
+| | Mainnet | Testnet |
+|---|---|---|
+| Chain ID | 4663 | 46630 |
+| RPC | `https://rpc.mainnet.chain.robinhood.com` | `https://rpc.testnet.chain.robinhood.com` |
+| Explorer | robinhoodchain.blockscout.com | explorer.testnet.chain.robinhood.com |
+| Gas token | ETH | ETH |
