@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {ConfidentialToken} from "../src/confidential/ConfidentialToken.sol";
 import {StubTransferVerifier} from "../src/confidential/StubTransferVerifier.sol";
+import {IConfidentialTransferVerifier} from "../src/confidential/IConfidentialTransferVerifier.sol";
 import {IERC20} from "../src/interfaces/IERC20.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import "../src/libraries/ProtocolErrors.sol";
@@ -70,5 +71,26 @@ contract ConfidentialTokenAuthorityTest is Test {
         vm.prank(multisig);
         confidential.acceptAuthority();
         assertEq(confidential.authority(), admin);
+    }
+
+    event VerifierUpdated(address indexed previousVerifier, address indexed verifier);
+
+    function test_verifier_rotation_names_both_ends() public {
+        address before = address(confidential.verifier());
+        StubTransferVerifier next = new StubTransferVerifier();
+
+        vm.expectEmit(true, true, false, false, address(confidential));
+        emit VerifierUpdated(before, address(next));
+        vm.prank(admin);
+        confidential.setVerifier(IConfidentialTransferVerifier(address(next)));
+
+        assertEq(address(confidential.verifier()), address(next));
+    }
+
+    function test_verifier_rotation_to_itself_reverts() public {
+        IConfidentialTransferVerifier current = confidential.verifier();
+        vm.expectRevert(ConfidentialToken.SameVerifier.selector);
+        vm.prank(admin);
+        confidential.setVerifier(current);
     }
 }

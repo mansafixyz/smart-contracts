@@ -46,6 +46,9 @@ contract ConfidentialToken is ReentrancyGuard {
     ///         complete an authority handoff.
     error NotPendingAuthority();
 
+    /// @notice Thrown when a rotation names the verifier already installed.
+    error SameVerifier();
+
     struct Ciphertext {
         AltBn128.Point c1;
         AltBn128.Point c2;
@@ -87,7 +90,7 @@ contract ConfidentialToken is ReentrancyGuard {
     event Deposited(address indexed account, uint256 amount);
     event ConfidentialTransfer(address indexed from, address indexed to);
     event Withdrawn(address indexed account, uint256 amount);
-    event VerifierUpdated(address indexed verifier);
+    event VerifierUpdated(address indexed previousVerifier, address indexed verifier);
     event PauseToggled(bool paused);
     event AuthorityTransferStarted(
         address indexed currentAuthority, address indexed pendingAuthority
@@ -222,10 +225,16 @@ contract ConfidentialToken is ReentrancyGuard {
 
     /// @notice Replaces the proof verifier, typically to move to upgraded
     ///         circuits.
+    /// @dev Both the outgoing and the incoming verifier are named in the event.
+    ///      Swapping the verifier is the single most consequential thing this
+    ///      role can do, and a monitor watching for it should be able to see the
+    ///      full transition from one log line rather than reconstructing it.
     function setVerifier(IConfidentialTransferVerifier newVerifier) external onlyAuthority {
         if (address(newVerifier) == address(0)) revert ZeroAddress();
+        if (newVerifier == verifier) revert SameVerifier();
+        address previous = address(verifier);
         verifier = newVerifier;
-        emit VerifierUpdated(address(newVerifier));
+        emit VerifierUpdated(previous, address(newVerifier));
     }
 
     /// @notice Freezes or unfreezes value movement on this layer. Registration
