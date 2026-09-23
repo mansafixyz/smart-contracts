@@ -53,6 +53,16 @@ contract AgentController is ReentrancyGuard {
         Revoked
     }
 
+    /// @notice What would happen to a spend if the agent submitted it now.
+    enum SpendRoute {
+        /// {payInvoice} would settle it on the spot.
+        Settles,
+        /// {queueInvoice} would park it for the owner to decide on.
+        Queues,
+        /// Neither path accepts it as things stand.
+        Refused
+    }
+
     struct Agent {
         address ownerProfile; // the wallet that owns this agent
         address agentSigner; // key the running agent submits spends with
@@ -572,6 +582,42 @@ contract AgentController is ReentrancyGuard {
         return _agentsByOwner[owner];
     }
 
+    /// @notice Which path a spend would take right now, or whether it would be
+    ///         turned away by both. Mirrors the checks in {payInvoice} and
+    ///         {queueInvoice} so an agent can find out before it spends gas,
+    ///         and a UI can label the button correctly.
+    /// @dev The daily ceiling and the vault balance are read against the live
+    ///      window, and a spend that queues today is re-checked at approval
+    ///      time, so `Queues` promises only that the record will be accepted.
+    function routeFor(uint256 agentId, address recipient, uint256 amount)
+        external
+        view
+        returns (SpendRoute)
+    {
+        Agent storage a = _agents[agentId];
+        if (!a.exists || a.status != AgentStatus.Active) return SpendRoute.Refused;
+        if (amount == 0 || recipient == address(0)) return SpendRoute.Refused;
+        if (protocol.paused()) return SpendRoute.Refused;
+
+        SpendPolicy storage p = _policies[agentId];
+        if (amount > p.perTxLimit) return SpendRoute.Refused;
+        if (!_isAllowed(p, recipient)) return SpendRoute.Refused;
+
+        // Anything the tier hands to a person goes to the queue.
+        if (a.autonomyTier == AutonomyTier.Supervised) return SpendRoute.Queues;
+        if (a.autonomyTier == AutonomyTier.SemiAutonomous && amount > p.hitlThreshold) {
+            return SpendRoute.Queues;
+        }
+
+        // The rest could settle directly, provided the day and the vault allow.
+        uint256 spent = block.timestamp - p.windowStart >= WINDOW ? 0 : p.windowSpent;
+        if (spent + amount > p.dailyLimit) return SpendRoute.Refused;
+        (uint256 fee,) = _quoteFee(agentId, amount);
+        if (amount + fee > vaultBalance[agentId]) return SpendRoute.Refused;
+
+        return SpendRoute.Settles;
+    }
+
     /// @notice What the agent could still spend in the current window, taking
     ///         into account a window that has already run out.
     function remainingDailyAllowance(uint256 agentId) external view returns (uint256) {
@@ -613,13 +659,17 @@ contract AgentController is ReentrancyGuard {
     }
 
     function _checkAllowlist(SpendPolicy storage p, address recipient) internal view {
-        if (!p.allowlistEnabled) return;
+        if (!_isAllowed(p, recipient)) revert RecipientNotAllowed();
+    }
+
+    function _isAllowed(SpendPolicy storage p, address recipient) internal view returns (bool) {
+        if (!p.allowlistEnabled) return true;
         address[] storage list = p.allowedRecipients;
         uint256 n = list.length;
         for (uint256 i; i < n; ++i) {
-            if (list[i] == recipient) return;
+            if (list[i] == recipient) return true;
         }
-        revert RecipientNotAllowed();
+        return false;
     }
 
     /// @dev Advances the 24-hour window the first time a spend arrives more than
