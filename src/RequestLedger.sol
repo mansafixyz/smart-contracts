@@ -44,6 +44,8 @@ contract RequestLedger is ReentrancyGuard {
         uint64 createdAt;
         uint64 expiresAt;
         bool exists;
+        address payer; // who settled it; zero until fulfilled
+        uint64 fulfilledAt; // when; zero until fulfilled
     }
 
     IProtocolAuthority public immutable protocol;
@@ -114,7 +116,9 @@ contract RequestLedger is ReentrancyGuard {
             status: RequestStatus.Open,
             createdAt: uint64(block.timestamp),
             expiresAt: expiresAt,
-            exists: true
+            exists: true,
+            payer: address(0),
+            fulfilledAt: 0
         });
         _requestsByRequester[msg.sender].push(requestId);
 
@@ -152,6 +156,8 @@ contract RequestLedger is ReentrancyGuard {
         }
 
         r.status = RequestStatus.Fulfilled;
+        r.payer = msg.sender;
+        r.fulfilledAt = uint64(block.timestamp);
 
         // Whoever pays is the one using the protocol, so the fee is added on top
         // of their payment and the recipient is left whole. The payer's own held
