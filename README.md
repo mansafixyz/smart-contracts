@@ -40,6 +40,8 @@ The owner then calls `approvePending`, which re-runs the policy against its pres
 
 Both routes carry an x402 `invoiceId` through to `AgentPaymentExecuted`, which is what an operator's webhook reconciles against.
 
+Before sending either, an agent or an interface can call `routeFor(agentId, recipient, amount)`, which runs the same checks in a view and answers `Settles`, `Queues`, or `Refused`. A wallet lists the agents it owns with `agentIdsOf`, the same shape the request ledger and disclosure log use for their own records.
+
 Three controls sit over the top. `setAgentStatus` halts and restarts an agent without touching vault or policy. `rotateAgentSigner` installs a fresh key while preserving vault, policy, and history — the recovery path for a leaked key that stops short of demolition. `revokeAgent` is final, and returns whatever remains to the owner in the same transaction.
 
 ## A confidential transfer, mechanically
@@ -54,7 +56,7 @@ The verifier lives behind `setVerifier` as a separate contract, so circuits can 
 
 ## Fees, and what `$MANSA` does about them
 
-One contract prices everything. `FeeSchedule.quoteFee(payer, amount)` returns the fee and the rate that produced it, and the app and SDK read the very same view to show someone their live rate beforehand.
+One contract prices everything. `FeeSchedule.quoteFee(payer, amount)` returns the fee and the rate that produced it, and the app and SDK read the very same view to show someone their live rate beforehand. `getTiers` returns the whole curve for anything that wants to draw it.
 
 ```
 grossFee  = amount * baseFeeBps / 10_000
@@ -77,7 +79,7 @@ The admin role can rotate the other roles, work the pause, and configure fee rou
 
 The pause stops value moving and deliberately leaves identity and agent configuration alive. Mid-incident, a user needs to be able to pause or revoke an agent, and a freeze that took that away would do so at the worst possible moment.
 
-The compliance role writes a KYC tier and does nothing else. It cannot move funds, block a transfer, or see a figure.
+The compliance role writes a KYC tier and does nothing else. It cannot move funds, block a transfer, or see a figure. The admin rotates it on its own through `setComplianceAuthority`, without restating who the admin is.
 
 ## Layout
 
