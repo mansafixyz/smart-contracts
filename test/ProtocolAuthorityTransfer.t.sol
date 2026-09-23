@@ -83,4 +83,26 @@ contract ProtocolAuthorityTransferTest is Test {
         vm.prank(nextAdmin);
         protocol.acceptAuthority();
     }
+
+    function test_compliance_authority_rotates_on_its_own() public {
+        address vendor = makeAddr("vendor");
+
+        vm.expectRevert(Unauthorized.selector);
+        vm.prank(stranger);
+        protocol.setComplianceAuthority(vendor);
+
+        vm.expectRevert(ZeroAddress.selector);
+        vm.prank(admin);
+        protocol.setComplianceAuthority(address(0));
+
+        // A handoff already underway is left exactly as it was.
+        vm.prank(admin);
+        protocol.beginAuthorityTransfer(nextAdmin);
+        vm.prank(admin);
+        protocol.setComplianceAuthority(vendor);
+
+        assertEq(protocol.complianceAuthority(), vendor);
+        assertEq(protocol.authority(), admin);
+        assertEq(protocol.pendingAuthority(), nextAdmin);
+    }
 }

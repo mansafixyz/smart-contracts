@@ -61,6 +61,9 @@ contract ProtocolAuthority is IProtocolAuthority {
     event AuthorityTransferAccepted(
         address indexed previousAuthority, address indexed newAuthority
     );
+    event ComplianceAuthorityUpdated(
+        address indexed previousComplianceAuthority, address indexed complianceAuthority
+    );
     event ProtocolPauseToggled(bool paused);
     event FeeConfigUpdated(address indexed treasury, address indexed feeSchedule);
 
@@ -94,6 +97,18 @@ contract ProtocolAuthority is IProtocolAuthority {
         // An outright replacement overrides whatever handoff was in flight.
         pendingAuthority = address(0);
         emit ConfigAuthorityUpdated(newAuthority, newComplianceAuthority);
+    }
+
+    /// @notice Swaps the identity vendor without touching the admin role.
+    /// @dev Rotating the compliance key through {updateConfig} meant restating
+    ///      the admin address on every call, which is one more place to get it
+    ///      wrong. This does the one thing and leaves any handoff in flight
+    ///      exactly where it was.
+    function setComplianceAuthority(address newComplianceAuthority) external onlyAuthority {
+        if (newComplianceAuthority == address(0)) revert ZeroAddress();
+        address previous = complianceAuthority;
+        complianceAuthority = newComplianceAuthority;
+        emit ComplianceAuthorityUpdated(previous, newComplianceAuthority);
     }
 
     /// @notice Nominates a successor without surrendering anything yet. The
