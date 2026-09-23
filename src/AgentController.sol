@@ -104,6 +104,11 @@ contract AgentController is ReentrancyGuard {
     mapping(uint256 => uint256) public pendingCount; // agentId => next pending id
     mapping(uint256 => mapping(uint256 => PendingApproval)) internal _pending;
 
+    /// @notice Agent ids per owning account, in the order they were created, so
+    ///         a wallet can list its agents without replaying the event log.
+    ///         Revoked agents stay in the list; their status says so.
+    mapping(address => uint256[]) internal _agentsByOwner;
+
     event AgentCreated(
         uint256 indexed agentId,
         address indexed ownerProfile,
@@ -240,6 +245,7 @@ contract AgentController is ReentrancyGuard {
         p.allowlistEnabled = allowlistEnabled;
         p.allowedRecipients = allowedRecipients;
         p.updatedAt = uint64(block.timestamp);
+        _agentsByOwner[msg.sender].push(agentId);
 
         emit AgentCreated(
             agentId, msg.sender, agentSigner, label, autonomyTier, token, block.timestamp
@@ -553,6 +559,17 @@ contract AgentController is ReentrancyGuard {
         returns (PendingApproval memory)
     {
         return _pending[agentId][pendingId];
+    }
+
+    /// @notice How many agents an account has created, revoked ones included.
+    function agentCountOf(address owner) external view returns (uint256) {
+        return _agentsByOwner[owner].length;
+    }
+
+    /// @notice Every agent id an account has created, oldest first. Pair with
+    ///         {getAgent} to hydrate each one.
+    function agentIdsOf(address owner) external view returns (uint256[] memory) {
+        return _agentsByOwner[owner];
     }
 
     /// @notice What the agent could still spend in the current window, taking
