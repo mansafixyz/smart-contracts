@@ -85,4 +85,22 @@ contract DisclosureIndexTest is Test {
         assertEq(disclosures.receiptIdsOf(gwen, 1, 10).length, 0);
         assertEq(disclosures.receiptIdsOf(felix, 0, 10).length, 0);
     }
+
+    function test_transfer_index_collects_every_disclosure_of_one_transfer() public {
+        vm.prank(gwen);
+        uint256 toAuditor = disclosures.file("tx-shared", keccak256("auditor"), keccak256("p1"));
+        vm.prank(felix);
+        uint256 toBank = disclosures.file("tx-shared", keccak256("bank"), keccak256("p2"));
+        vm.prank(gwen);
+        disclosures.file("tx-other", keccak256("auditor"), keccak256("p3"));
+
+        uint256[] memory ids = disclosures.receiptIdsForTransfer("tx-shared");
+        assertEq(ids.length, 2);
+        assertEq(ids[0], toAuditor);
+        assertEq(ids[1], toBank);
+    }
+
+    function test_transfer_index_is_empty_for_an_undisclosed_transfer() public view {
+        assertEq(disclosures.receiptIdsForTransfer("never-disclosed").length, 0);
+    }
 }

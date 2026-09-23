@@ -37,6 +37,12 @@ contract DisclosureLog {
     ///         walks this list rather than replaying the entire event log.
     mapping(address => uint256[]) internal _receiptsByProfile;
 
+    /// @notice Receipt ids per transfer reference, keyed by its hash. One
+    ///         transfer may be disclosed more than once, to different viewers or
+    ///         at different times, and an auditor asking "was this ever
+    ///         disclosed" should get every instance from one read.
+    mapping(bytes32 => uint256[]) internal _receiptsByTransfer;
+
     event DisclosureFiled(
         uint256 indexed receiptId, address indexed profile, string txReference, uint256 timestamp
     );
@@ -72,6 +78,7 @@ contract DisclosureLog {
             exists: true
         });
         _receiptsByProfile[msg.sender].push(receiptId);
+        _receiptsByTransfer[keccak256(bytes(txReference))].push(receiptId);
 
         emit DisclosureFiled(receiptId, msg.sender, txReference, block.timestamp);
     }
@@ -89,6 +96,17 @@ contract DisclosureLog {
     ///         {getReceipt} to hydrate each one for an export.
     function receiptIdsOf(address profile) external view returns (uint256[] memory) {
         return _receiptsByProfile[profile];
+    }
+
+    /// @notice Every receipt filed against one transfer reference, oldest
+    ///         first, whoever filed it. Empty when the transfer was never
+    ///         disclosed.
+    function receiptIdsForTransfer(string calldata txReference)
+        external
+        view
+        returns (uint256[] memory)
+    {
+        return _receiptsByTransfer[keccak256(bytes(txReference))];
     }
 
     /// @notice One page of an account's receipt ids, oldest first, beginning at
