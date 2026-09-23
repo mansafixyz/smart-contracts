@@ -70,4 +70,26 @@ contract FeeScheduleAuthorityTest is Test {
         fees.acceptAuthority();
         assertEq(fees.authority(), admin);
     }
+
+    function test_get_tiers_returns_the_whole_curve() public {
+        FeeSchedule.Tier[] memory curve = fees.getTiers();
+        assertEq(curve.length, fees.tierCount());
+        assertEq(curve.length, 4);
+        assertEq(curve[0].minWeight, 1_000e18);
+        assertEq(curve[0].discountBps, 1_000);
+        assertEq(curve[3].minWeight, 1_000_000e18);
+        assertEq(curve[3].discountBps, 7_500);
+
+        // A replacement curve reads back in full as well.
+        FeeSchedule.Tier[] memory next = new FeeSchedule.Tier[](2);
+        next[0] = FeeSchedule.Tier(500e18, 500);
+        next[1] = FeeSchedule.Tier(5_000e18, 2_000);
+        vm.prank(admin);
+        fees.setTiers(next);
+
+        curve = fees.getTiers();
+        assertEq(curve.length, 2);
+        assertEq(curve[1].minWeight, 5_000e18);
+        assertEq(curve[1].discountBps, 2_000);
+    }
 }

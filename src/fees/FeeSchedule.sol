@@ -220,4 +220,11 @@ contract FeeSchedule is IFeeSchedule {
     function tierCount() external view returns (uint256) {
         return tiers.length;
     }
+
+    /// @notice The whole discount curve in one read, ascending by weight. An
+    ///         interface drawing the tier ladder wants all of it at once rather
+    ///         than one `tiers(i)` call per rung.
+    function getTiers() external view returns (Tier[] memory) {
+        return tiers;
+    }
 }
