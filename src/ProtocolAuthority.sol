@@ -139,13 +139,18 @@ contract ProtocolAuthority is IProtocolAuthority {
     }
 
     /// @notice Configures, or dismantles, fee routing. Fees require both a
-    ///         destination and a schedule; clear either one and charging stops
-    ///         everywhere at once. Every module reads this pair to decide
-    ///         whether it owes a fee and how large it is.
+    ///         destination and a schedule, and this call insists on both or
+    ///         neither: pass two addresses to switch fees on, two zeros to
+    ///         switch them off. Every module reads this pair to decide whether
+    ///         it owes a fee and how large it is.
     /// @param treasury_ Fee destination, or zero to stop charging.
     /// @param feeSchedule_ IFeeSchedule pricing fees and $MANSA discounts, or
     ///        zero to stop charging.
     function setFeeConfig(address treasury_, address feeSchedule_) external onlyAuthority {
+        // Fees are on or off, never half-set. A treasury with no schedule, or
+        // the reverse, reads as "off" to every module, which is the kind of
+        // silent misconfiguration an operator would rather have refused.
+        if ((treasury_ == address(0)) != (feeSchedule_ == address(0))) revert InvalidFeeConfig();
         treasury = treasury_;
         feeSchedule = feeSchedule_;
         emit FeeConfigUpdated(treasury_, feeSchedule_);

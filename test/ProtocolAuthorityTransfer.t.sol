@@ -105,4 +105,27 @@ contract ProtocolAuthorityTransferTest is Test {
         assertEq(protocol.authority(), admin);
         assertEq(protocol.pendingAuthority(), nextAdmin);
     }
+
+    function test_fee_routing_is_all_or_nothing() public {
+        address treasury = makeAddr("treasury");
+        address schedule = makeAddr("schedule");
+
+        vm.expectRevert(InvalidFeeConfig.selector);
+        vm.prank(admin);
+        protocol.setFeeConfig(treasury, address(0));
+
+        vm.expectRevert(InvalidFeeConfig.selector);
+        vm.prank(admin);
+        protocol.setFeeConfig(address(0), schedule);
+
+        vm.prank(admin);
+        protocol.setFeeConfig(treasury, schedule);
+        assertEq(protocol.treasury(), treasury);
+        assertEq(protocol.feeSchedule(), schedule);
+
+        vm.prank(admin);
+        protocol.setFeeConfig(address(0), address(0));
+        assertEq(protocol.treasury(), address(0));
+        assertEq(protocol.feeSchedule(), address(0));
+    }
 }
