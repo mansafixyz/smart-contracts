@@ -85,4 +85,13 @@ contract HandleChangeTest is Test {
         vm.prank(makeAddr("stranger"));
         registry.changeHandle("stranger");
     }
+
+    function test_handle_availability_matches_the_claim_rules() public view {
+        assertTrue(registry.handleAvailable("newcomer"));
+        assertFalse(registry.handleAvailable("gwen")); // taken
+        assertFalse(registry.handleAvailable("Gwen")); // uppercase
+        assertFalse(registry.handleAvailable("gwen.mansafi")); // suffix is not part of it
+        assertFalse(registry.handleAvailable("")); // empty
+        assertFalse(registry.handleAvailable("abcdefghijklmnopqrstuvwxyz0123456")); // 33 chars
+    }
 }

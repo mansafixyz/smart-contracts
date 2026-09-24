@@ -164,6 +164,17 @@ contract AccountRegistry is IAccountRegistry {
         return _handleOwner[keccak256(bytes(handle))];
     }
 
+    /// @notice Whether `handle` could be claimed right now: well-formed, inside
+    ///         the length limit, and held by nobody. This is the question the
+    ///         sign-up screen asks on every keystroke, and answering it here
+    ///         means the client never has to carry its own copy of the rules.
+    function handleAvailable(string calldata handle) external view returns (bool) {
+        uint256 len = bytes(handle).length;
+        if (len == 0 || len > MAX_HANDLE_LEN) return false;
+        if (!_isValidHandle(handle)) return false;
+        return _handleOwner[keccak256(bytes(handle))] == address(0);
+    }
+
     /// @notice The handle as a person reads it, for instance `gwen.mansafi`.
     function fullHandle(address owner) external view returns (string memory) {
         return string.concat(_profiles[owner].handle, HANDLE_SUFFIX);
