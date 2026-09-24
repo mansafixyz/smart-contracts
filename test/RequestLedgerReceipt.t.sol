@@ -8,6 +8,7 @@ import {RequestLedger} from "../src/RequestLedger.sol";
 import {IProtocolAuthority} from "../src/interfaces/IProtocolAuthority.sol";
 import {IAccountRegistry} from "../src/interfaces/IAccountRegistry.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
+import "../src/libraries/ProtocolErrors.sol";
 
 contract RequestLedgerReceiptTest is Test {
     ProtocolAuthority protocol;
@@ -90,5 +91,26 @@ contract RequestLedgerReceiptTest is Test {
         RequestLedger.Request memory r = requests.getRequest(id);
         assertEq(r.payer, address(0));
         assertEq(r.fulfilledAt, 0);
+    }
+
+    function test_confidential_request_without_a_commitment_is_refused() public {
+        vm.expectRevert(MissingCommitment.selector);
+        vm.prank(gwen);
+        requests.create(
+            gwen, address(usdg), true, 0, bytes32(0), bytes32(0), uint64(block.timestamp + 1 hours)
+        );
+
+        // With a commitment it opens as before.
+        vm.prank(gwen);
+        uint256 id = requests.create(
+            gwen,
+            address(usdg),
+            true,
+            0,
+            keccak256("commitment"),
+            bytes32(0),
+            uint64(block.timestamp + 1 hours)
+        );
+        assertTrue(requests.isFulfillable(id));
     }
 }

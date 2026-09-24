@@ -48,6 +48,7 @@ error RequestNotOpen();
 error RequestExpired();
 error RequestAmountMismatch();
 error RequestCommitmentMismatch();
+error MissingCommitment();
 error InvalidExpiry();
 
 // ── Disclosure receipts ─────────────────────────────────────────────────────

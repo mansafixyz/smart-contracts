@@ -103,6 +103,9 @@ contract RequestLedger is ReentrancyGuard {
         if (receiver == address(0) || token == address(0)) revert ZeroAddress();
         if (expiresAt <= block.timestamp) revert InvalidExpiry();
         if (!isConfidential && amount == 0) revert InvalidSpendAmount();
+        // A confidential request with no commitment could never be paid, since
+        // fulfill would compare the payer's figure against zero and refuse.
+        if (isConfidential && amountCommitment == bytes32(0)) revert MissingCommitment();
 
         requestId = ++requestCount;
         _requests[requestId] = Request({
