@@ -8,6 +8,7 @@ import {AgentController} from "../src/AgentController.sol";
 import {IProtocolAuthority} from "../src/interfaces/IProtocolAuthority.sol";
 import {IAccountRegistry} from "../src/interfaces/IAccountRegistry.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
+import "../src/libraries/ProtocolErrors.sol";
 
 contract AgentOwnerIndexTest is Test {
     ProtocolAuthority protocol;
@@ -77,5 +78,35 @@ contract AgentOwnerIndexTest is Test {
 
         assertEq(agents.agentCountOf(gwen), 1);
         assertEq(uint8(agents.getAgent(a).status), uint8(AgentController.AgentStatus.Revoked));
+    }
+
+    function test_owner_can_rename_an_agent() public {
+        uint256 a = _create(gwen, "research");
+
+        vm.prank(gwen);
+        agents.renameAgent(a, "research-v2");
+        assertEq(agents.getAgent(a).label, "research-v2");
+
+        // Everything else about the agent is where it was.
+        assertEq(agents.getAgent(a).agentSigner, signer);
+        assertEq(agents.getAgent(a).ownerProfile, gwen);
+    }
+
+    function test_rename_is_owner_only_and_validated() public {
+        uint256 a = _create(gwen, "research");
+
+        vm.expectRevert(UnauthorizedAgentOwner.selector);
+        vm.prank(felix);
+        agents.renameAgent(a, "mine-now");
+
+        vm.expectRevert(InvalidLabelLength.selector);
+        vm.prank(gwen);
+        agents.renameAgent(a, "");
+
+        vm.prank(gwen);
+        agents.revokeAgent(a);
+        vm.expectRevert(AgentAlreadyRevoked.selector);
+        vm.prank(gwen);
+        agents.renameAgent(a, "retired");
     }
 }

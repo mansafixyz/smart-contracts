@@ -138,6 +138,9 @@ contract AgentController is ReentrancyGuard {
         uint256 timestamp
     );
     event AgentStatusChanged(uint256 indexed agentId, AgentStatus status, uint256 timestamp);
+    event AgentRenamed(
+        uint256 indexed agentId, string previousLabel, string newLabel, uint256 timestamp
+    );
     event AgentSignerRotated(
         uint256 indexed agentId,
         address indexed previousSigner,
@@ -304,6 +307,20 @@ contract AgentController is ReentrancyGuard {
             allowedRecipients,
             block.timestamp
         );
+    }
+
+    /// @notice Changes the readable label on an agent. Cosmetic only: the
+    ///         signer, vault, policy and history are untouched, so the name an
+    ///         owner sees on their dashboard is not fixed forever at creation.
+    function renameAgent(uint256 agentId, string calldata label) external onlyAgentOwner(agentId) {
+        uint256 len = bytes(label).length;
+        if (len == 0 || len > MAX_LABEL_LEN) revert InvalidLabelLength();
+        Agent storage a = _agents[agentId];
+        if (a.status == AgentStatus.Revoked) revert AgentAlreadyRevoked();
+
+        string memory previous = a.label;
+        a.label = label;
+        emit AgentRenamed(agentId, previous, label, block.timestamp);
     }
 
     /// @notice Halts or restarts an agent, leaving vault and policy as they are.
