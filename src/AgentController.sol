@@ -178,6 +178,9 @@ contract AgentController is ReentrancyGuard {
     event PendingPaymentRejected(
         uint256 indexed agentId, uint256 indexed pendingId, uint256 timestamp
     );
+    event PendingPaymentWithdrawn(
+        uint256 indexed agentId, uint256 indexed pendingId, uint256 timestamp
+    );
     event ProtocolFeeCharged(
         uint256 indexed agentId, address indexed treasury, uint256 fee, uint256 timestamp
     );
@@ -551,6 +554,17 @@ contract AgentController is ReentrancyGuard {
         if (!_pending[agentId][pendingId].exists) revert PendingApprovalNotFound();
         delete _pending[agentId][pendingId];
         emit PendingPaymentRejected(agentId, pendingId, block.timestamp);
+    }
+
+    /// @notice The agent takes back a spend it queued and no longer needs, for
+    ///         instance because the x402 challenge behind it has expired. Only
+    ///         the record goes; nothing was ever moved. An owner turning a spend
+    ///         down uses {rejectPending}, and the two are logged apart so a
+    ///         timeline can tell who ended it.
+    function withdrawPending(uint256 agentId, uint256 pendingId) external onlyAgentSigner(agentId) {
+        if (!_pending[agentId][pendingId].exists) revert PendingApprovalNotFound();
+        delete _pending[agentId][pendingId];
+        emit PendingPaymentWithdrawn(agentId, pendingId, block.timestamp);
     }
 
     // ── Reads ────────────────────────────────────────────────────────────────
