@@ -109,4 +109,17 @@ contract AgentOwnerIndexTest is Test {
         vm.prank(gwen);
         agents.renameAgent(a, "retired");
     }
+
+    function test_revoked_agent_policy_is_frozen() public {
+        uint256 a = _create(gwen, "research");
+        vm.prank(gwen);
+        agents.revokeAgent(a);
+
+        address[] memory none = new address[](0);
+        vm.expectRevert(AgentAlreadyRevoked.selector);
+        vm.prank(gwen);
+        agents.updateSpendPolicy(a, 2e6, 20e6, 2e6, false, none);
+
+        assertEq(agents.getPolicy(a).perTxLimit, 1e6);
+    }
 }

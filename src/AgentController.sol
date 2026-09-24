@@ -279,7 +279,9 @@ contract AgentController is ReentrancyGuard {
 
     /// @notice Rewrites an agent's ceilings, approval threshold, and allowlist.
     ///         Reserved to the owning account — an agent has no standing to
-    ///         relax the rules it runs under.
+    ///         relax the rules it runs under. A revoked agent's policy is
+    ///         frozen, the same way its signer is, so the record reads as it
+    ///         stood when the agent was retired.
     function updateSpendPolicy(
         uint256 agentId,
         uint256 perTxLimit,
@@ -288,6 +290,9 @@ contract AgentController is ReentrancyGuard {
         bool allowlistEnabled,
         address[] calldata allowedRecipients
     ) external onlyAgentOwner(agentId) {
+        if (_agents[agentId].status == AgentStatus.Revoked) {
+            revert AgentAlreadyRevoked();
+        }
         _validateLimits(perTxLimit, dailyLimit, hitlThreshold, allowedRecipients.length);
 
         SpendPolicy storage p = _policies[agentId];
