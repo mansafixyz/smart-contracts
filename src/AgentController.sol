@@ -607,6 +607,23 @@ contract AgentController is ReentrancyGuard {
         return _pending[agentId][pendingId];
     }
 
+    /// @notice The queued spends still waiting on a decision for one agent,
+    ///         oldest first. Ids are handed out sequentially and a settled or
+    ///         dropped record is deleted, so the approval screen would otherwise
+    ///         walk every id ever issued and test each one for existence.
+    function openPendingIds(uint256 agentId) external view returns (uint256[] memory ids) {
+        uint256 issued = pendingCount[agentId];
+        uint256 open;
+        for (uint256 i; i < issued; ++i) {
+            if (_pending[agentId][i].exists) ++open;
+        }
+        ids = new uint256[](open);
+        uint256 k;
+        for (uint256 i; i < issued; ++i) {
+            if (_pending[agentId][i].exists) ids[k++] = i;
+        }
+    }
+
     /// @notice How many agents an account has created, revoked ones included.
     function agentCountOf(address owner) external view returns (uint256) {
         return _agentsByOwner[owner].length;

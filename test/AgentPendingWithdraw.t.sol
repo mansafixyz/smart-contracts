@@ -91,4 +91,25 @@ contract AgentPendingWithdrawTest is Test {
         vm.prank(signer);
         agents.withdrawPending(agentId, 42);
     }
+
+    function test_open_pending_ids_skip_settled_and_dropped_records() public {
+        uint256 a = _queue();
+        uint256 b = _queue();
+        uint256 c = _queue();
+        uint256 d = _queue();
+
+        vm.prank(gwen);
+        agents.approvePending(agentId, a);
+        vm.prank(gwen);
+        agents.rejectPending(agentId, c);
+
+        uint256[] memory open = agents.openPendingIds(agentId);
+        assertEq(open.length, 2);
+        assertEq(open[0], b);
+        assertEq(open[1], d);
+    }
+
+    function test_open_pending_ids_is_empty_for_a_quiet_agent() public view {
+        assertEq(agents.openPendingIds(agentId).length, 0);
+    }
 }
