@@ -61,6 +61,18 @@ contract StakingVault is ReentrancyGuard {
 
     /// @notice Returns `amount` of $MANSA to the caller, immediately.
     function unstake(uint256 amount) external nonReentrant {
+        _unstake(amount);
+    }
+
+    /// @notice Closes the caller's position and returns everything in it. The
+    ///         exit button on a UI wants this rather than a read of the balance
+    ///         followed by an unstake of the figure it saw, since the two can be
+    ///         separated by a top-up from another tab.
+    function unstakeAll() external nonReentrant {
+        _unstake(stakedOf[msg.sender]);
+    }
+
+    function _unstake(uint256 amount) internal {
         if (amount == 0) revert InvalidSpendAmount();
         uint256 bal = stakedOf[msg.sender];
         if (amount > bal) revert InsufficientStakedBalance();

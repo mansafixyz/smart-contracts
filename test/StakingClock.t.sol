@@ -65,4 +65,23 @@ contract StakingClockTest is Test {
         staking.stake(10e18);
         assertEq(staking.stakedSince(gwen), uint64(block.timestamp));
     }
+
+    function test_unstake_all_closes_the_position() public {
+        vm.startPrank(gwen);
+        staking.stake(300e18);
+        staking.stake(200e18);
+        staking.unstakeAll();
+        vm.stopPrank();
+
+        assertEq(staking.stakedOf(gwen), 0);
+        assertEq(staking.stakedSince(gwen), 0);
+        assertEq(staking.totalStaked(), 0);
+        assertEq(mansafi.balanceOf(gwen), 1_000e18);
+    }
+
+    function test_unstake_all_with_nothing_staked_reverts() public {
+        vm.expectRevert(InvalidSpendAmount.selector);
+        vm.prank(gwen);
+        staking.unstakeAll();
+    }
 }
