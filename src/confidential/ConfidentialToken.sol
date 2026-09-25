@@ -178,6 +178,10 @@ contract ConfidentialToken is ReentrancyGuard {
         if (!registered[msg.sender]) revert AccountNotRegistered();
         if (amount == 0) revert InvalidSpendAmount();
         if (!verifier.verifyWithdraw(proof, publicSignals)) revert ProofRejected();
+        // A sound proof already implies this, but the check is cheap and turns
+        // an arithmetic panic into an error a client can name if the verifier
+        // ever lets something through it should not have.
+        if (amount > totalWrapped) revert ExceedsWrappedSupply();
 
         Ciphertext storage bal = _balance[msg.sender];
         bal.c2 = bal.c2.add(AltBn128.encode(amount).negate());

@@ -105,4 +105,12 @@ contract ConfidentialTokenPauseTest is Test {
         confidential.deposit(usd(10));
         assertEq(confidential.totalWrapped(), usd(110));
     }
+
+    function test_withdraw_beyond_the_pool_is_refused_by_name() public {
+        uint256[] memory signals = new uint256[](0);
+        // The stub verifier waves everything through; the pool is the last line.
+        vm.expectRevert(ExceedsWrappedSupply.selector);
+        vm.prank(felix);
+        confidential.withdraw(usd(101), "", signals);
+    }
 }

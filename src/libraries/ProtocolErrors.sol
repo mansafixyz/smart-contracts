@@ -59,6 +59,7 @@ error AccountNotRegistered();
 error AccountAlreadyRegistered();
 error InvalidPublicKey();
 error ProofRejected();
+error ExceedsWrappedSupply();
 
 // ── Fees and staking ────────────────────────────────────────────────────────
 error InvalidFeeConfig();
