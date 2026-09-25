@@ -158,6 +158,15 @@ contract AccountRegistry is IAccountRegistry {
         return _profiles[owner];
     }
 
+    /// @notice The record behind a `.mansafi` handle, in one read. The
+    ///         send-to-a-handle flow resolves the name and then wants the kind
+    ///         and tier to draw the confirmation card, and doing both here saves
+    ///         a round trip on every recipient lookup. Unclaimed names return an
+    ///         empty record with `exists` false.
+    function profileByHandle(string calldata handle) external view returns (Profile memory) {
+        return _profiles[_handleOwner[keccak256(bytes(handle))]];
+    }
+
     /// @notice Points a `.mansafi` handle at its wallet, or at the zero address
     ///         when nobody has claimed it.
     function resolveHandle(string calldata handle) external view returns (address) {

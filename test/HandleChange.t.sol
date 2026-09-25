@@ -94,4 +94,15 @@ contract HandleChangeTest is Test {
         assertFalse(registry.handleAvailable("")); // empty
         assertFalse(registry.handleAvailable("abcdefghijklmnopqrstuvwxyz0123456")); // 33 chars
     }
+
+    function test_profile_by_handle_returns_the_record_or_nothing() public view {
+        AccountRegistry.Profile memory p = registry.profileByHandle("gwen");
+        assertTrue(p.exists);
+        assertEq(p.owner, gwen);
+        assertEq(p.handle, "gwen");
+
+        AccountRegistry.Profile memory none = registry.profileByHandle("nobody");
+        assertFalse(none.exists);
+        assertEq(none.owner, address(0));
+    }
 }
