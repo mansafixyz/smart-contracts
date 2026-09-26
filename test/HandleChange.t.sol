@@ -105,4 +105,26 @@ contract HandleChangeTest is Test {
         assertFalse(none.exists);
         assertEq(none.owner, address(0));
     }
+
+    function test_owner_can_reclassify_their_account() public {
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(gwen);
+        registry.setAccountKind(AccountRegistry.AccountKind.Business);
+
+        AccountRegistry.Profile memory p = registry.profileOf(gwen);
+        assertEq(uint8(p.accountKind), uint8(AccountRegistry.AccountKind.Business));
+        assertEq(p.handle, "gwen");
+        assertEq(p.updatedAt, uint64(block.timestamp));
+        assertLt(p.createdAt, p.updatedAt);
+    }
+
+    function test_reclassify_rejects_no_ops_and_strangers() public {
+        vm.expectRevert(AccountRegistry.SameAccountKind.selector);
+        vm.prank(gwen);
+        registry.setAccountKind(AccountRegistry.AccountKind.Personal);
+
+        vm.expectRevert(ProfileNotFound.selector);
+        vm.prank(makeAddr("stranger"));
+        registry.setAccountKind(AccountRegistry.AccountKind.Business);
+    }
 }

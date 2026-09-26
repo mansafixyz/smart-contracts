@@ -18,6 +18,9 @@ import "./libraries/ProtocolErrors.sol";
 ///      and of the `.mansafi` suffix; {fullHandle} reassembles the display form
 ///      on read rather than paying to store it.
 contract AccountRegistry is IAccountRegistry {
+    /// @notice Thrown when a reclassification names the kind already recorded.
+    error SameAccountKind();
+
     enum AccountKind {
         Personal,
         Business,
@@ -52,6 +55,9 @@ contract AccountRegistry is IAccountRegistry {
         address indexed owner, string handle, AccountKind accountKind, uint256 timestamp
     );
     event KycTierUpdated(address indexed owner, KycTier kycTier, uint256 timestamp);
+    event AccountKindChanged(
+        address indexed owner, AccountKind previousKind, AccountKind newKind, uint256 timestamp
+    );
     event HandleChanged(
         address indexed owner, string previousHandle, string newHandle, uint256 timestamp
     );
@@ -118,6 +124,21 @@ contract AccountRegistry is IAccountRegistry {
         p.updatedAt = uint64(block.timestamp);
 
         emit HandleChanged(msg.sender, previous, newHandle, block.timestamp);
+    }
+
+    /// @notice Reclassifies the caller's own account, for instance when a sole
+    ///         trader incorporates or a person starts operating agents. The
+    ///         handle, tier and timestamps ride through untouched; the kind is
+    ///         a label for interfaces and limits to read, not a permission.
+    function setAccountKind(AccountKind accountKind) external {
+        Profile storage p = _profiles[msg.sender];
+        if (!p.exists) revert ProfileNotFound();
+        if (p.accountKind == accountKind) revert SameAccountKind();
+
+        AccountKind previous = p.accountKind;
+        p.accountKind = accountKind;
+        p.updatedAt = uint64(block.timestamp);
+        emit AccountKindChanged(msg.sender, previous, accountKind, block.timestamp);
     }
 
     /// @notice Writes the outcome of an off-chain identity check onto a record.
