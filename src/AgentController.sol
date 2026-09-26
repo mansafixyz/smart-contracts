@@ -671,6 +671,15 @@ contract AgentController is ReentrancyGuard {
         return SpendRoute.Settles;
     }
 
+    /// @notice When the agent's rolling 24-hour window next resets, as a
+    ///         timestamp. A window that has already run out reports the current
+    ///         block time, meaning the next spend opens a fresh one. Pair with
+    ///         {remainingDailyAllowance} to show "X left, resets in Y".
+    function windowResetsAt(uint256 agentId) external view returns (uint256) {
+        uint256 resetAt = uint256(_policies[agentId].windowStart) + WINDOW;
+        return resetAt > block.timestamp ? resetAt : block.timestamp;
+    }
+
     /// @notice What the agent could still spend in the current window, taking
     ///         into account a window that has already run out.
     function remainingDailyAllowance(uint256 agentId) external view returns (uint256) {

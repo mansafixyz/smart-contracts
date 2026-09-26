@@ -130,4 +130,22 @@ contract AgentSpendRouteTest is Test {
     function test_unknown_agent_is_refused() public view {
         assertRoute(agents.routeFor(999, vendor, usd(1)), AgentController.SpendRoute.Refused);
     }
+
+    function test_window_reset_time_tracks_the_live_window() public {
+        uint256 opened = agents.getPolicy(agentId).windowStart;
+        assertEq(agents.windowResetsAt(agentId), opened + 1 days);
+
+        // Spending inside the window does not move the reset.
+        vm.warp(opened + 6 hours);
+        vm.prank(signer);
+        agents.payInvoice(agentId, vendor, usd(5), bytes32(0));
+        assertEq(agents.windowResetsAt(agentId), opened + 1 days);
+
+        // Once it has lapsed the answer is "now", and the next spend reopens it.
+        vm.warp(opened + 30 hours);
+        assertEq(agents.windowResetsAt(agentId), block.timestamp);
+        vm.prank(signer);
+        agents.payInvoice(agentId, vendor, usd(5), bytes32(0));
+        assertEq(agents.windowResetsAt(agentId), block.timestamp + 1 days);
+    }
 }
